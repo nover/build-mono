@@ -1,0 +1,42 @@
+#!/bin/sh
+
+set -e
+
+BUILD_DIR=$1
+CACHE_DIR=$2
+
+MONO_VERSION="3.2.3"
+
+SRC_CACHE_DIR="$CACHE_DIR/src"
+
+MONO_SRC_DIR="mono-$MONO_VERSION"
+MONO_SRC_VERSION_CACHE_DIR=$SRC_CACHE_DIR/$MONO_SRC_DIR
+
+if [ ! -d "$SRC_CACHE_DIR" ]; then
+   mkdir -p $SRC_CACHE_DIR
+fi
+
+echo "building Mono $MONO_VERSION"
+echo "source cache location is $MONO_SRC_VERSION_CACHE_DIR"
+
+if [ ! -d "$MONO_SRC_VERSION_CACHE_DIR" ]; then
+   echo "downloading mono source to $SRC_CACHE_DIR"
+   curl http://origin-download.mono-project.com/sources/mono/$MONO_SRC_DIR.tar.bz2 -s | tar jx -C $SRC_CACHE_DIR
+fi
+
+cp -r $MONO_SRC_VERSION_CACHE_DIR .
+cd $MONO_SRC_DIR
+
+./configure --prefix=/app/mono --sysconfdir=/app/mono \
+    --disable-moonlight --disable-nls --enable-minimal=aot,profiler,debug,logging
+make get-monolite-latest
+make EXTERNAL_MCS=${PWD}/mcs/class/lib/monolite/gmcs.exe
+make install
+
+ln -s /app/mono/lib/mono/xbuild/Microsoft/VisualStudio/v9.0 /app/mono/lib/mono/xbuild/Microsoft/VisualStudio/v10.0
+
+cd ..
+
+rm -rf $MONO_SRC_DIR
+
+cp -r /app/mono .
